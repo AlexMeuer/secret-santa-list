@@ -1,0 +1,9 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE OR REPLACE FUNCTION public.room_is_password_protected(room_row room)
+--  RETURNS boolean
+--  LANGUAGE sql
+--  STABLE
+-- AS $function$
+--   SELECT room_row.password IS NOT NULL AS BOOLEAN
+-- $function$;

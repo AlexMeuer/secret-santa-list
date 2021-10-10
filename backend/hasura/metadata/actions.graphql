@@ -1,0 +1,18 @@
+type Mutation {
+  join_room (
+    params: join_room_params!
+  ): join_room_result
+}
+
+input join_room_params {
+  room : String!
+  user : String!
+  room_pw : String
+  user_pw : String
+}
+
+type join_room_result {
+  room_name : String!
+  user_name : String!
+}
+

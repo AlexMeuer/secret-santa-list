@@ -1,0 +1,43 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:12
+    #ports:
+      #- "5432:5432"
+    restart: always
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  hasura:
+    image: hasura/graphql-engine:v2.0.9
+    ports:
+      - "8080:8080"
+    depends_on:
+      - "postgres"
+      - "secret-santa-list"
+    restart: always
+    volumes:
+      - ./hasura/metadata:/hasura-metadata
+      - ./hasura/migrations:/hasura-migrations
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_USER}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "false"
+      ## enable debugging mode. It is recommended to disable this in production
+      HASURA_GRAPHQL_DEV_MODE: "${HASURA_GRAPHQL_DEV_MODE}"
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+      ## uncomment next line to set an admin secret
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: "anon"
+      ACTION_BASE_URL: "http://secret-santa-list:3000"
+  secret-santa-list:
+    build: .
+    restart: always
+    environment:
+      SANTA_PORT: 3000
+      SANTA_HASURA_ENDPOINT: "http://hasura:8080/v1/graphql"
+      SANTA_HASURA_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+      SANTA_VERBOSE: "true"
+volumes:
+  db_data:
