@@ -1,0 +1,31 @@
+actions:
+- name: join_room
+  definition:
+    kind: synchronous
+    handler: '{{ACTION_BASE_URL}}/room/join'
+  permissions:
+  - role: anon
+custom_types:
+  enums: []
+  input_objects:
+  - name: join_room_params
+  objects:
+  - name: join_room_result
+    relationships:
+    - remote_table:
+        schema: public
+        name: room
+      name: room
+      source: default
+      type: object
+      field_mapping:
+        room_name: name
+    - remote_table:
+        schema: public
+        name: user
+      name: user
+      source: default
+      type: object
+      field_mapping:
+        user_name: name
+  scalars: []
