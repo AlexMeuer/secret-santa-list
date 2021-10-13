@@ -3,7 +3,7 @@ module github.com/alexmeuer/secret-santa-list
 go 1.16
 
 require (
-	github.com/alexmeuer/graphql-util v0.1.0
+	github.com/alexmeuer/graphql-util v0.1.4
 	github.com/alexmeuer/http v0.0.0-20210623172940-fd945ab3404e
 	github.com/gin-contrib/logger v0.2.0
 	github.com/gin-gonic/gin v1.7.4
