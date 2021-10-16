@@ -48,6 +48,26 @@
       allow_aggregations: true
 - table:
     schema: public
+    name: room_user_item
+  object_relationships:
+  - name: membership
+    using:
+      manual_configuration:
+        remote_table:
+          schema: public
+          name: room_user
+        insertion_order: null
+        column_mapping:
+          room_name: room_name
+          user_name: user_name
+  - name: room
+    using:
+      foreign_key_constraint_on: room_name
+  - name: user
+    using:
+      foreign_key_constraint_on: user_name
+- table:
+    schema: public
     name: user
   array_relationships:
   - name: rooms

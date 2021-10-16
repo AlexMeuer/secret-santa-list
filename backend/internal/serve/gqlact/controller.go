@@ -8,7 +8,8 @@ import (
 )
 
 type controller struct {
-	GQL GraphQLClient
+	GQL  GraphQLClient
+	Auth *JWTAuth
 }
 
 type JSONer interface {
