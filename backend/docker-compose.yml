@@ -39,5 +39,9 @@ services:
       SANTA_HASURA_ENDPOINT: "http://hasura:8080/v1/graphql"
       SANTA_HASURA_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
       SANTA_VERBOSE: "true"
+  redis:
+    image: redis
+    #ports:
+      #- 6379:6379
 volumes:
   db_data:

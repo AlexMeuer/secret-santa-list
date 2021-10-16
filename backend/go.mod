@@ -7,6 +7,8 @@ require (
 	github.com/alexmeuer/http v0.0.0-20210623172940-fd945ab3404e
 	github.com/gin-contrib/logger v0.2.0
 	github.com/gin-gonic/gin v1.7.4
+	github.com/go-redis/redis/v7 v7.4.1
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hasura/go-graphql-client v0.3.0
 	github.com/klauspost/compress v1.13.6 // indirect
