@@ -9,12 +9,13 @@ import (
 )
 
 type JWTAuth struct {
-	Secret string
+	AccessSecret  string
+	RefreshSecret string
 }
 
 type OptionFunc func(jwt.MapClaims)
 
-func (a *JWTAuth) CreateToken(userID string, options ...OptionFunc) (string, error) {
+func WriteJWT(secret, userID string, options ...OptionFunc) (string, error) {
 	claims := jwt.MapClaims{}
 	for _, opt := range options {
 		opt(claims)
@@ -22,7 +23,14 @@ func (a *JWTAuth) CreateToken(userID string, options ...OptionFunc) (string, err
 	claims["user_id"] = userID
 	claims["iat"] = jwt.TimeFunc().Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(a.Secret)
+	return token.SignedString(secret)
+}
+func (a *JWTAuth) CreateTokenAccess(userID string, options ...OptionFunc) (string, error) {
+	return WriteJWT(a.AccessSecret, userID, options...)
+}
+
+func (a *JWTAuth) CreateTokenRefresh(userID string, options ...OptionFunc) (string, error) {
+	return WriteJWT(a.RefreshSecret, userID, options...)
 }
 
 // WithExpiryAt sets the JWT expiry to a specific time.

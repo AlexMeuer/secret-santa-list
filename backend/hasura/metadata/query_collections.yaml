@@ -1,1 +1,10 @@
-[]
+- name: allowed-queries
+  definition:
+    queries:
+    - name: UserPasswordByName
+      query: |-
+        query PasswordByName($name: String!) {
+          user_by_pk(name: $name) {
+            password
+          }
+        }
