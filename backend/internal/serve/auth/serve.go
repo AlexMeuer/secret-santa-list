@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
+	"github.com/rs/zerolog/log"
 )
 
 type TokenStore interface {
@@ -34,6 +35,8 @@ func Serve(port int16, tknCreator *JWTCreator, tknStore TokenStore, pwChecker Pa
 			return
 		}
 		if err = pwChecker.Check(ctx, authInfo.Name, authInfo.Password); err != nil {
+			// TODO: check if failed pw err (e.g. ErrPasswordMismatch) or other error.
+			log.Err(err).Str("user", authInfo.Name).Msg("PW check failed.")
 			ctx.String(http.StatusForbidden, "Incorrect name/password combination.")
 			return
 		}
@@ -46,10 +49,12 @@ func Serve(port int16, tknCreator *JWTCreator, tknStore TokenStore, pwChecker Pa
 		}
 		td, err := tknCreator.CreateToken(authInfo.Name, claims)
 		if err != nil {
+			log.Err(err).Str("user", authInfo.Name).Msg("Failed to create token.")
 			ctx.String(http.StatusInternalServerError, err.Error())
 			return
 		}
 		if err = tknStore.Write(authInfo.Name, td); err != nil {
+			log.Err(err).Str("user", authInfo.Name).Msg("Failed to write token to store.")
 			ctx.String(http.StatusInternalServerError, err.Error())
 			return
 		}
