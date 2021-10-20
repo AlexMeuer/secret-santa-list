@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 
 	gql "github.com/alexmeuer/graphql-util"
 	"github.com/hasura/go-graphql-client"
@@ -18,24 +19,27 @@ func (pc *GraphQLPasswordChecker) Check(ctx context.Context, name string, passwo
 		User struct {
 			Name     string `graphql:"name"`
 			Password string `graphql:"password"`
-		} `graphql:""` // TODO
+		} `graphql:"user_by_pk(name: $name)"`
 	}
 	v := gql.Vars{
 		"name": gql.String(name),
 	}
 	if err := pc.Client.NamedQuery(ctx, "AuthUserByPK", &q, v); err != nil {
-		return err
+		return fmt.Errorf("failed to query user: %w", err)
 	}
 	if q.User.Name != "" {
 		return bcrypt.CompareHashAndPassword([]byte(q.User.Password), []byte(password))
 	}
-	var m struct {
-		User gql.Empty `graphql:""` // TODO
-	}
 	b, err := bcrypt.GenerateFromPassword([]byte(password), pc.BCryptCost)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to generate password hash with bcrypt: %w", err)
+	}
+	var m struct {
+		User gql.Empty `graphql:"insert_user_one(object: {name: $name, password: $pw})"`
 	}
 	v["pw"] = gql.String(b)
-	return pc.Client.NamedMutate(ctx, "CreateUser", &m, v)
+	if err := pc.Client.NamedMutate(ctx, "CreateUser", &m, v); err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+	return nil
 }
