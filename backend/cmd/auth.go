@@ -52,7 +52,7 @@ var authCmd = &cobra.Command{
 			return err
 		}
 
-		tknCreator := &auth.JWTCreator{
+		tknCreator := &auth.JWTManager{
 			AccessSecret:  []byte(JWTAccessSecret),
 			RefreshSecret: []byte(JWTRefreshSecret),
 			AccessTTL:     JWTAccessTTL,
