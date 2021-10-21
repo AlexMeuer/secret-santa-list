@@ -1,1 +1,0 @@
-CREATE TABLE "public"."room_user" ("room" text NOT NULL, "user" text NOT NULL, PRIMARY KEY ("room","user") , FOREIGN KEY ("room") REFERENCES "public"."room"("name") ON UPDATE cascade ON DELETE cascade, FOREIGN KEY ("user") REFERENCES "public"."user"("name") ON UPDATE cascade ON DELETE cascade);

@@ -1,9 +1,0 @@
--- Could not auto-generate a down migration.
--- Please write an appropriate down migration for the SQL below:
--- CREATE OR REPLACE FUNCTION public.user_is_password_protected(user_row "user")
---  RETURNS boolean
---  LANGUAGE sql
---  STABLE
--- AS $function$
---   SELECT user_row.password IS NOT NULL AS BOOLEAN
--- $function$;

@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
   hasura:
-    image: hasura/graphql-engine:v2.0.9
+    image: hasura/graphql-engine:v2.0.10.cli-migrations-v3
     ports:
       - "8080:8080"
     depends_on:
@@ -42,6 +42,8 @@ services:
   secret-santa-auth:
     build: .
     command: "/bin/secret-santa-list serve auth"
+    depends_on:
+      - "hasura"
     restart: always
     ports:
       - "3001:3001"
