@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	gql "github.com/alexmeuer/graphql-util"
+	gql "github.com/alexmeuer/hasura-util"
 )
 
 type controller struct {

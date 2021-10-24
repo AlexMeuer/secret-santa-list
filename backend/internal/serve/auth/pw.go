@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	gql "github.com/alexmeuer/graphql-util"
+	gql "github.com/alexmeuer/hasura-util"
 	"github.com/hasura/go-graphql-client"
 	"golang.org/x/crypto/bcrypt"
 )
