@@ -8,6 +8,11 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
+const (
+	ClaimKeyAccessUUID  = "access_uuid"
+	ClaimKeyRefreshUUID = "refresh_uuid"
+)
+
 type JWTManager struct {
 	AccessSecret  []byte
 	RefreshSecret []byte
@@ -28,6 +33,7 @@ type OutboundTokenDetails struct {
 type InboundTokenDetails struct {
 	UUID   string
 	UserID string
+	Claims jwt.MapClaims
 }
 
 func (m *JWTManager) Create(userID string, namespacedClaims map[string]jwt.MapClaims) (*OutboundTokenDetails, error) {
@@ -43,7 +49,7 @@ func (m *JWTManager) Create(userID string, namespacedClaims map[string]jwt.MapCl
 	// Creating Access Token
 	atClaims := jwt.MapClaims{}
 	atClaims["authorized"] = true
-	atClaims["access_uuid"] = td.AccessUUID
+	atClaims[ClaimKeyAccessUUID] = td.AccessUUID
 	atClaims["user_id"] = userID
 	atClaims["iat"] = now.Unix()
 	atClaims["exp"] = td.AtExpires
@@ -58,7 +64,7 @@ func (m *JWTManager) Create(userID string, namespacedClaims map[string]jwt.MapCl
 	}
 	// Creating Refresh Token
 	rtClaims := jwt.MapClaims{}
-	rtClaims["refresh_uuid"] = td.RefreshUUID
+	rtClaims[ClaimKeyRefreshUUID] = td.RefreshUUID
 	rtClaims["user_id"] = userID
 	rtClaims["iat"] = now.Unix()
 	rtClaims["exp"] = td.RtExpires
@@ -109,22 +115,22 @@ func ExtractDetail(tkn *jwt.Token, reqKID string) (*InboundTokenDetails, error) 
 	var UUIDClaimKey string
 	switch keyID {
 	case "a":
-		UUIDClaimKey = "access_uuid"
+		UUIDClaimKey = ClaimKeyAccessUUID
 	case "r":
-		UUIDClaimKey = "refesh_uuid"
+		UUIDClaimKey = ClaimKeyRefreshUUID
 	default:
 		return nil, fmt.Errorf("unrecognized key id: %s", keyID)
 	}
-	claims, ok := tkn.Claims.(jwt.MapClaims)
+	details := &InboundTokenDetails{}
+	details.Claims, ok = tkn.Claims.(jwt.MapClaims)
 	if !ok {
 		return nil, fmt.Errorf("unable to read token claims as map claims: %v", tkn.Claims)
 	}
-	details := &InboundTokenDetails{}
-	details.UUID, ok = claims[UUIDClaimKey].(string)
+	details.UUID, ok = details.Claims[UUIDClaimKey].(string)
 	if !ok {
 		return nil, fmt.Errorf("failed to find %s in token claims", UUIDClaimKey)
 	}
-	details.UserID, ok = claims["user_id"].(string)
+	details.UserID, ok = details.Claims["user_id"].(string)
 	if !ok {
 		return nil, errors.New("failed to find user_id in token claims")
 	}

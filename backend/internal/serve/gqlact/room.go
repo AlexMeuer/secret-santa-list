@@ -3,7 +3,7 @@ package gqlact
 import (
 	"net/http"
 
-	gql "github.com/alexmeuer/graphql-util"
+	gql "github.com/alexmeuer/hasura-util"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"

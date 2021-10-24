@@ -7,17 +7,22 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/fatih/structs"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
+	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const TknDetailKey = "tkn_detail"
+const HasuraClaimsNamespace = "https://hasura.io/jwt/claims"
 
 type TokenStore interface {
 	Set(userID string, td *OutboundTokenDetails) error
+	Get(ID string) (string, error)
 	Del(ID string) error
 }
 
@@ -39,6 +44,18 @@ type WWWAuthenticateChallenge struct {
 	ErrorDesc string
 }
 
+type HasuraClaims struct {
+	AllowedRoles []string `structs:"x-hasura-allowed-roles" mapstructure:"x-hasura-allowed-roles"`
+	DefaultRole  string   `structs:"x-hasura-default-role" mapstructure:"x-hasura-default-role"`
+	UserID       string   `structs:"x-hasura-user-id" mapstructure:"x-hasura-user-id"`
+}
+
+type HasuraAuthResponse struct {
+	UserID  string `json:"x-hasura-user-id,omitempty"`
+	Role    string `json:"x-hasura-role"`
+	Expires string `json:"expires,omitempty"`
+}
+
 func Serve(port int16, JWTMgr *JWTManager, tknStore TokenStore, pwChecker PasswordChecker) error {
 	r := gin.Default()
 
@@ -56,47 +73,128 @@ func Serve(port int16, JWTMgr *JWTManager, tknStore TokenStore, pwChecker Passwo
 			ctx.String(http.StatusBadRequest, fmt.Sprintf("PW check failed: %s", err.Error()))
 			return
 		}
-		claims := map[string]jwt.MapClaims{
-			"https://hasura.io/jwt/claims": {
-				"x-hasura-allowed-roles": []string{"anon", "user"},
-				"x-hasura-default-role":  "user",
-				"x-hasura-user-id":       authInfo.Name,
-			},
+		if td, err := CreateAndStoreTokenPair(JWTMgr, tknStore, authInfo.Name); err != nil {
+			ctx.Status(http.StatusInternalServerError)
+		} else {
+			ctx.JSON(http.StatusOK, td)
 		}
-		td, err := JWTMgr.Create(authInfo.Name, claims)
-		if err != nil {
-			log.Err(err).Str("user", authInfo.Name).Msg("Failed to create token.")
-			ctx.String(http.StatusInternalServerError, err.Error())
-			return
-		}
-		if err = tknStore.Set(authInfo.Name, td); err != nil {
-			log.Err(err).Str("user", authInfo.Name).Msg("Failed to write token to store.")
-			ctx.String(http.StatusInternalServerError, err.Error())
-			return
-		}
-		ctx.JSON(http.StatusOK, td)
 	})
 
-	r.POST("/deauth", TokenAuthMiddleware(JWTMgr, "a"), func(ctx *gin.Context) {
+	r.POST("/deauth", TokenAuthMiddleware(JWTMgr, tknStore, "a", false), func(ctx *gin.Context) {
 		tknDetails, err := ReadTknDetail(ctx)
 		if err != nil {
 			log.Err(err).Msg("Token details not found!")
-			ctx.String(http.StatusInternalServerError, err.Error())
+			ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
 		if err := tknStore.Del(tknDetails.UUID); err != nil {
 			log.Err(err).Msg("Failed to deauthorize token!")
-			ctx.String(http.StatusInternalServerError, "failed to deauthorize token")
+			ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
 		ctx.Status(http.StatusAccepted)
 	})
 
-	r.POST("/refresh", TokenAuthMiddleware(JWTMgr, "r"), func(ctx *gin.Context) {
-		ctx.Status(http.StatusNotImplemented) // TODO
+	r.POST("/refresh", TokenAuthMiddleware(JWTMgr, tknStore, "r", false), func(ctx *gin.Context) {
+		tknDetails, err := ReadTknDetail(ctx)
+		if err != nil {
+			log.Err(err).Msg("Token details not found!")
+			ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		if tknStore.Del(tknDetails.UUID); err != nil {
+			log.Err(err).Str("user", tknDetails.UserID).Str("tkn_id", tknDetails.UUID).Msg("Failed to delete refresh token.")
+			chal := WWWAuthenticateChallenge{
+				Type:      "Bearer",
+				Error:     "invalid_token",
+				ErrorDesc: "token not found",
+			}
+			ctx.Header("WWW-Authenticate", chal.String())
+			ctx.Status(http.StatusUnauthorized)
+			return
+		}
+		if td, err := CreateAndStoreTokenPair(JWTMgr, tknStore, tknDetails.UserID); err != nil {
+			ctx.Status(http.StatusInternalServerError)
+		} else {
+			ctx.JSON(http.StatusOK, td)
+		}
+	})
+
+	r.GET("/hasura", TokenAuthMiddleware(JWTMgr, tknStore, "a", true), func(ctx *gin.Context) {
+		tknDetails, err := ReadTknDetail(ctx)
+		if err != nil {
+			log.Err(err).Msg("Token details not found!")
+			ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		var claims HasuraClaims
+		if err = mapstructure.Decode(tknDetails.Claims[HasuraClaimsNamespace], &claims); err != nil {
+			log.Err(err).Interface("hasura_claims", tknDetails.Claims[HasuraClaimsNamespace]).Msg("Failed to decode Hasura claims!")
+			ctx.Status(http.StatusUnauthorized)
+			return
+		}
+
+		var response HasuraAuthResponse
+
+		if reqUserID := ctx.Request.Header.Get("X-Hasura-User-Id"); reqUserID != "" {
+			if reqUserID != claims.UserID {
+				log.Warn().Msgf("Requested user ID (%s) does not match Hasura claim (%s)", reqUserID, claims.UserID)
+				ctx.Status(http.StatusUnauthorized)
+				return
+			}
+		} else {
+			response.UserID = claims.UserID
+		}
+		if reqRole := ctx.Request.Header.Get("X-Hasura-Role"); reqRole != "" {
+			for _, r := range claims.AllowedRoles {
+				if reqRole == r {
+					response.Role = reqRole
+					break
+				}
+			}
+			if response.Role == "" {
+				log.Warn().Msgf("Requested role (%s) does not match Hasura claim (%v)", reqRole, claims.AllowedRoles)
+				ctx.Status(http.StatusUnauthorized)
+				return
+			}
+		} else {
+			response.Role = claims.DefaultRole
+		}
+
+		// TODO: Figure out why the conversion to int64 is failing.
+		if exp, ok := tknDetails.Claims["exp"]; ok {
+			if expUnix, ok := exp.(int64); ok {
+				response.Expires = time.Unix(expUnix, 0).Format(time.RFC3339)
+			} else {
+				log.Error().Interface("exp", exp).Msg("Token claim 'exp' could not be converted to int64.")
+			}
+		} else {
+			log.Error().Interface("claims", tknDetails.Claims).Msg("'exp' not found in claims.")
+		}
+
+		ctx.JSON(http.StatusOK, response)
 	})
 
 	return r.Run(fmt.Sprintf("0.0.0.0:%d", port))
+}
+
+func CreateAndStoreTokenPair(JWTMgr *JWTManager, tknStore TokenStore, userID string) (td *OutboundTokenDetails, err error) {
+	claims := map[string]jwt.MapClaims{
+		HasuraClaimsNamespace: structs.Map(HasuraClaims{
+			AllowedRoles: []string{"anon", "user"},
+			DefaultRole:  "user",
+			UserID:       userID,
+		}),
+	}
+	td, err = JWTMgr.Create(userID, claims)
+	if err != nil {
+		log.Err(err).Str("user", userID).Msg("Failed to create token.")
+		return
+	}
+	if err = tknStore.Set(userID, td); err != nil {
+		log.Err(err).Str("user", userID).Msg("Failed to write token to store.")
+	}
+	return
 }
 
 func ReadTknDetail(ctx *gin.Context) (*InboundTokenDetails, error) {
@@ -111,35 +209,42 @@ func ReadTknDetail(ctx *gin.Context) (*InboundTokenDetails, error) {
 	return tknDetail, nil
 }
 
-func TokenAuthMiddleware(JWTMgr *JWTManager, reqKeyID string) gin.HandlerFunc {
+func TokenAuthMiddleware(JWTMgr *JWTManager, store TokenStore, reqKeyID string, allowNoAuth bool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		authHeader := strings.Fields(ctx.Request.Header.Get("Authorization"))
 		chal := WWWAuthenticateChallenge{
 			Type: "Bearer",
 		}
 		if len(authHeader) == 0 {
-			ctx.Header("WWW-Authenticate", chal.String())
-			ctx.Status(http.StatusUnauthorized)
+			if allowNoAuth {
+				ctx.JSON(http.StatusOK, HasuraAuthResponse{
+					Role: "anon",
+				})
+				ctx.Abort()
+			} else {
+				ctx.Header("WWW-Authenticate", chal.String())
+				ctx.AbortWithStatus(http.StatusUnauthorized)
+			}
 			return
 		}
 		if len(authHeader) != 2 {
 			chal.Error = "invalid_token"
 			chal.ErrorDesc = "malformed authorization header"
 			ctx.Header("WWW-Authenticate", chal.String())
-			ctx.String(http.StatusUnauthorized, "malformed authorization header")
+			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 		tkn, err := JWTMgr.Verify(authHeader[1])
 		if err != nil {
 			chal.Error = "invalid_token"
 			chal.ErrorDesc = "failed to verify token"
-			ctx.String(http.StatusUnauthorized, "failed to verify token: %s", err.Error())
+			ctx.AbortWithError(http.StatusUnauthorized, err)
 			return
 		}
 		if !tkn.Valid {
 			chal.Error = "invalid_token"
 			ctx.Header("WWW-Authenticate", chal.String())
-			ctx.String(http.StatusUnauthorized, "token not valid")
+			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 		tknDetail, err := ExtractDetail(tkn, reqKeyID)
@@ -147,10 +252,23 @@ func TokenAuthMiddleware(JWTMgr *JWTManager, reqKeyID string) gin.HandlerFunc {
 			chal.Error = "invalid_token"
 			chal.ErrorDesc = "failed to extract required info from token"
 			ctx.Header("WWW-Authenticate", chal.String())
-			ctx.String(http.StatusUnauthorized, "failed to extract info: %s", err.Error())
+			ctx.AbortWithError(http.StatusUnauthorized, err)
 			return
 		}
-		ctx.Set(TknDetailKey, tknDetail)
+		if userID, err := store.Get(tknDetail.UUID); err != nil {
+			chal.Error = "invalid_token"
+			chal.ErrorDesc = "token expired/revoked"
+			ctx.Header("WWW-Authenticate", chal.String())
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+		} else if userID != tknDetail.UserID {
+			chal.Error = "invalid_token"
+			chal.ErrorDesc = "token/user mismatch"
+			ctx.Header("WWW-Authenticate", chal.String())
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+		} else {
+			ctx.Set(TknDetailKey, tknDetail)
+			ctx.Next()
+		}
 	}
 }
 
