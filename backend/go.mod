@@ -3,13 +3,17 @@ module github.com/alexmeuer/secret-santa-list
 go 1.16
 
 require (
-	github.com/alexmeuer/graphql-util v0.1.4
+	github.com/alexmeuer/hasura-util v0.2.1
 	github.com/alexmeuer/http v0.0.0-20210623172940-fd945ab3404e
+	github.com/fatih/structs v1.1.0
 	github.com/gin-contrib/logger v0.2.0
 	github.com/gin-gonic/gin v1.7.4
-	github.com/google/uuid v1.3.0 // indirect
+	github.com/go-redis/redis/v7 v7.4.1
+	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/google/uuid v1.3.0
 	github.com/hasura/go-graphql-client v0.3.0
 	github.com/klauspost/compress v1.13.6 // indirect
+	github.com/mitchellh/mapstructure v1.4.2
 	github.com/rs/zerolog v1.25.0
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5

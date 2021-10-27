@@ -1,0 +1,28 @@
+table:
+  name: room
+  schema: public
+array_relationships:
+- name: users
+  using:
+    foreign_key_constraint_on:
+      column: room_name
+      table:
+        name: room_user
+        schema: public
+computed_fields:
+- definition:
+    function:
+      name: room_is_password_protected
+      schema: public
+  name: password_protected
+select_permissions:
+- permission:
+    allow_aggregations: true
+    columns:
+    - created_at
+    - name
+    computed_fields:
+    - password_protected
+    filter: {}
+    limit: 100
+  role: anon

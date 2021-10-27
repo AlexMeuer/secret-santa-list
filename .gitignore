@@ -1,0 +1,6 @@
+*.env
+# OS files
+.DS_Store
+Thumbs.db
+*.lnk
+.Trash-*

@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 
-	gql "github.com/alexmeuer/graphql-util"
+	gql "github.com/alexmeuer/hasura-util"
 )
 
 type controller struct {
-	GQL GraphQLClient
+	GQL  GraphQLClient
+	Auth *JWTAuth
 }
 
 type JSONer interface {

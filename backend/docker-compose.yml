@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
   hasura:
-    image: hasura/graphql-engine:v2.0.9
+    image: hasura/graphql-engine:v2.0.10.cli-migrations-v3
     ports:
       - "8080:8080"
     depends_on:
@@ -29,7 +29,8 @@ services:
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
       ## uncomment next line to set an admin secret
       HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
-      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: "anon"
+      HASURA_GRAPHQL_AUTH_HOOK: "http://secret-santa-auth:3001/hasura"
+      HASURA_GRAPHQL_AUTH_HOOK_MODE: "GET"
       ACTION_BASE_URL: "http://secret-santa-list:3000"
   secret-santa-list:
     build: .
@@ -39,5 +40,25 @@ services:
       SANTA_HASURA_ENDPOINT: "http://hasura:8080/v1/graphql"
       SANTA_HASURA_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
       SANTA_VERBOSE: "true"
+  secret-santa-auth:
+    build: .
+    command: "/bin/secret-santa-list serve auth"
+    depends_on:
+      - "hasura"
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      SANTA_PORT: 3001
+      SANTA_HASURA_ENDPOINT: "http://hasura:8080/v1/graphql"
+      SANTA_HASURA_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+      SANTA_JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      SANTA_JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      SANTA_REDIS_ADDR: "redis:6379"
+      SANTA_VERBOSE: "true"
+  redis:
+    image: redis
+    #ports:
+      #- 6379:6379
 volumes:
   db_data:
