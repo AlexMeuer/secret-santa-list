@@ -52,7 +52,7 @@ var authCmd = &cobra.Command{
 			return err
 		}
 
-		tknCreator := &auth.JWTManager{
+		tknMgr := &auth.JWTManager{
 			AccessSecret:  []byte(JWTAccessSecret),
 			RefreshSecret: []byte(JWTRefreshSecret),
 			AccessTTL:     JWTAccessTTL,
@@ -70,7 +70,7 @@ var authCmd = &cobra.Command{
 				},
 			}),
 		}
-		return auth.Serve(port, tknCreator, tknStore, PWChecker)
+		return auth.Serve(port, tknMgr, tknStore, PWChecker)
 	},
 }
 
