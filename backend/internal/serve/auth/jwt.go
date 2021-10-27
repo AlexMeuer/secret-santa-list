@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 )
 
 const (
@@ -37,6 +38,9 @@ type InboundTokenDetails struct {
 }
 
 func (m *JWTManager) Create(userID string, namespacedClaims map[string]jwt.MapClaims) (*OutboundTokenDetails, error) {
+	if m.GenerateUUID == nil {
+		m.GenerateUUID = uuid.NewString
+	}
 	now := jwt.TimeFunc()
 	td := &OutboundTokenDetails{}
 	td.AtExpires = now.Add(m.AccessTTL).Unix()
