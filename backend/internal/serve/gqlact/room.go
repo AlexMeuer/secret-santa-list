@@ -27,10 +27,10 @@ func (c *controller) CreateOrJoinRoom(ctx *gin.Context) {
 			Name string `graphql:"name"`
 			PW   string `graphql:"password"`
 		} `graphql:"room_by_pk(name: $room)"`
-		User struct {
+		User []struct {
 			Name string `graphql:"name"`
 			PW   string `graphql:"password"`
-		} `graphql:"user_by_pk(name: $user)"`
+		} `graphql:"user(where: {name: {_ilike: $name}}, limit: 1)"`
 		Membership struct {
 			UserName string `graphql:"user_name"`
 		} `graphql:"room_user_by_pk(room_name: $room, user_name: $user)"`
@@ -39,13 +39,13 @@ func (c *controller) CreateOrJoinRoom(ctx *gin.Context) {
 		"room": gql.String(params.RoomName),
 		"user": gql.String(params.UserName),
 	}
-	if err := c.GQL.NamedQuery(ctx, "RoomAndUserByPK", &q, v); err != nil {
+	if err := c.GQL.NamedQuery(ctx, "PreJoinRoomCheck", &q, v); err != nil {
 		log.Err(err).Interface("vars", v).Str("category", "room.create_or_join").Msg("Failed to query room and user by PK.")
 		ctx.JSON(http.StatusInternalServerError, gql.ErrFrom(err))
 		return
 	}
-
-	log.Error().Interface("q", &q).Interface("params", &params).Msg("FOO")
+	userExists := len(q.User) > 0
+	roomExists := q.Room.Name != ""
 
 	if len(q.Room.PW) > 0 {
 		if err := bcrypt.CompareHashAndPassword([]byte(q.Room.PW), []byte(params.RoomPW)); err != nil {
@@ -53,7 +53,8 @@ func (c *controller) CreateOrJoinRoom(ctx *gin.Context) {
 			return
 		}
 	}
-	if len(q.User.PW) > 0 {
+
+	if userExists && len(q.User[0].PW) > 0 {
 		if err := bcrypt.CompareHashAndPassword([]byte(q.Room.PW), []byte(params.UserPW)); err != nil {
 			ctx.JSON(http.StatusForbidden, gql.ErrFrom(err))
 			return
@@ -61,13 +62,13 @@ func (c *controller) CreateOrJoinRoom(ctx *gin.Context) {
 	}
 
 	// TODO: refactor this!
-	if q.Membership.UserName != "" {
+	if q.Membership.UserName != "" { // User has already joined room. We can return early.
 		ctx.JSON(http.StatusOK, gin.H{
 			"room_name": params.RoomName,
 			"user_name": params.UserName,
 		})
 		return
-	} else if q.Room.Name == "" && q.User.Name == "" {
+	} else if !roomExists && !userExists { // Both room and user need to be created.
 		var m struct {
 			User       gql.Empty `graphql:"insert_user_one(object: {name: $user, password: $user_pw})"`
 			Room       gql.Empty `graphql:"insert_room_one(object: {name: $room, password: $room_pw})"`
@@ -88,7 +89,7 @@ func (c *controller) CreateOrJoinRoom(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gql.ErrFrom(err))
 			return
 		}
-	} else if q.Room.Name == "" {
+	} else if !roomExists { // The user exists but the room needs to be created.
 		var m struct {
 			Room       gql.Empty `graphql:"insert_room_one(object: {name: $room, password: $room_pw})"`
 			Membership gql.Empty `graphql:"insert_room_user_one(object: {room_name: $room, user_name: $user})"`
@@ -103,7 +104,7 @@ func (c *controller) CreateOrJoinRoom(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gql.ErrFrom(err))
 			return
 		}
-	} else if q.User.Name == "" {
+	} else if !userExists { // The room exists but the user needs to be created.
 		var m struct {
 			User       gql.Empty `graphql:"insert_user_one(object: {name: $user, password: $user_pw})"`
 			Membership gql.Empty `graphql:"insert_room_user_one(object: {room_name: $room, user_name: $user})"`
@@ -118,7 +119,7 @@ func (c *controller) CreateOrJoinRoom(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gql.ErrFrom(err))
 			return
 		}
-	} else {
+	} else { // Both the room and user already exist, but the user is not a member of the room yet.
 		var m struct {
 			Membership gql.Empty `graphql:"insert_room_user_one(object: {room_name: $room, user_name: $user})"`
 		}

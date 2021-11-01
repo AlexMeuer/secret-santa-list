@@ -5,11 +5,12 @@ import (
 	"errors"
 
 	gql "github.com/alexmeuer/hasura-util"
+	"github.com/alexmeuer/secret-santa-list/pkg/auth"
 )
 
 type controller struct {
 	GQL  GraphQLClient
-	Auth *JWTAuth
+	Auth *auth.JWTManager
 }
 
 type JSONer interface {
