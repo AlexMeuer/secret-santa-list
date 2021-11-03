@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animator/flutter_animator.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:secret_santa_list/application/join_room/join_room_bloc.dart';
 import 'package:secret_santa_list/presentation/pages/join_room/widgets/join_button.dart';
 import 'package:secret_santa_list/presentation/pages/join_room/widgets/room_name_input.dart';
 import 'package:secret_santa_list/presentation/pages/join_room/widgets/room_password_input.dart';
