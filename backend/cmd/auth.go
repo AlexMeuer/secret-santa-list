@@ -22,6 +22,7 @@ import (
 
 	httpx "github.com/alexmeuer/http"
 	"github.com/alexmeuer/secret-santa-list/internal/serve/auth"
+	auth_util "github.com/alexmeuer/secret-santa-list/pkg/auth"
 	"github.com/go-redis/redis/v7"
 	"github.com/google/uuid"
 	"github.com/hasura/go-graphql-client"
@@ -52,14 +53,14 @@ var authCmd = &cobra.Command{
 			return err
 		}
 
-		tknMgr := &auth.JWTManager{
+		tknMgr := &auth_util.JWTManager{
 			AccessSecret:  []byte(JWTAccessSecret),
 			RefreshSecret: []byte(JWTRefreshSecret),
 			AccessTTL:     JWTAccessTTL,
 			RefreshTTL:    JWTRefreshTTL,
 			GenerateUUID:  uuid.NewString,
 		}
-		tknStore := &auth.RedisTokenStore{Client: redisClient}
+		tknStore := &auth_util.RedisTokenStore{Client: redisClient}
 		PWChecker := &auth.GraphQLPasswordChecker{
 			Client: graphql.NewClient(hasuraEndpoint, &http.Client{
 				Transport: &httpx.CustomHeaderTransport{

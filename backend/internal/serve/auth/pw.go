@@ -16,10 +16,10 @@ type GraphQLPasswordChecker struct {
 
 func (pc *GraphQLPasswordChecker) Check(ctx context.Context, name string, password string) error {
 	var q struct {
-		User struct {
+		User []struct {
 			Name     string `graphql:"name"`
 			Password string `graphql:"password"`
-		} `graphql:"user_by_pk(name: $name)"`
+		} `graphql:"user(where: {name: {_ilike: $name}}, limit: 1)"`
 	}
 	v := gql.Vars{
 		"name": gql.String(name),
@@ -27,8 +27,8 @@ func (pc *GraphQLPasswordChecker) Check(ctx context.Context, name string, passwo
 	if err := pc.Client.NamedQuery(ctx, "AuthUserByPK", &q, v); err != nil {
 		return fmt.Errorf("failed to query user: %w", err)
 	}
-	if q.User.Name != "" {
-		return bcrypt.CompareHashAndPassword([]byte(q.User.Password), []byte(password))
+	if len(q.User) > 0 {
+		return bcrypt.CompareHashAndPassword([]byte(q.User[0].Password), []byte(password))
 	}
 	b, err := bcrypt.GenerateFromPassword([]byte(password), pc.BCryptCost)
 	if err != nil {
