@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:secret_santa_list/application/sign_in/sign_in_bloc.dart';
 
-class UserPasswordInput extends BlocBuilderBase<SignInBloc, SignInState> {
-  const UserPasswordInput({Key? key})
+class PasswordInput extends BlocBuilderBase<SignInBloc, SignInState> {
+  const PasswordInput({Key? key})
       : super(key: key, buildWhen: passwordErrorChanged);
 
   @override

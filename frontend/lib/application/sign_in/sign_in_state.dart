@@ -11,9 +11,15 @@ class SignInState with _$SignInState {
     String? pwError,
   }) = _SignInState;
 
+  const SignInState._();
+
   factory SignInState.initial() => const SignInState(
         name: "",
         password: "",
         working: false,
       );
+
+  bool get hasError => nameError != null || pwError != null;
+
+  bool get hasEmpty => name.isEmpty || password.isEmpty;
 }
