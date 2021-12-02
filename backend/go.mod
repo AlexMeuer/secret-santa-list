@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hasura/go-graphql-client v0.3.0
 	github.com/klauspost/compress v1.13.6 // indirect
-	github.com/mitchellh/mapstructure v1.4.2
+	github.com/mitchellh/mapstructure v1.4.3
 	github.com/rs/zerolog v1.26.0
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
