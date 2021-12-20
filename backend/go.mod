@@ -11,7 +11,7 @@ require (
 	github.com/go-redis/redis/v7 v7.4.1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.3.0
-	github.com/hasura/go-graphql-client v0.3.0
+	github.com/hasura/go-graphql-client v0.6.0
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/rs/zerolog v1.26.0
