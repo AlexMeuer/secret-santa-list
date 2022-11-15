@@ -17,8 +17,7 @@ require (
 	github.com/rs/zerolog v1.26.0
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.9.0
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
-	golang.org/x/net v0.0.0-20211008194852-3b03d305991f // indirect
+	github.com/spf13/viper v1.14.0
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	nhooyr.io/websocket v1.8.7 // indirect
 )
